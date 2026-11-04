@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Queens Lite</title>
+<style>
+:root{--bg:#121214;--panel:#1c1c20;--ink:#ece9e4;--mute:#8d8a86;--grid:rgba(0,0,0,.28);--edge:#0b0b0c;--neutral:#2a2a2f;--lk:.62;--sk:.75;--accent:#f0b44c;--bad:#ff5a5a;--good:#5be08a}
+:root.light{--bg:#f6f1ec;--panel:#fff;--ink:#3b2a26;--mute:#9a8c86;--grid:rgba(0,0,0,.13);--edge:#3f302b;--neutral:#e9e2db;--lk:1;--sk:1;--accent:#c47a12;--bad:#d62828;--good:#1f9d55}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);min-height:100vh;display:flex;justify-content:center}
+.wrap{width:100%;max-width:480px;padding:12px 12px 24px;display:flex;flex-direction:column;gap:12px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px}
+.sub{color:var(--mute);font-size:12px}
+.ib{border:0;background:var(--panel);color:var(--ink);border-radius:12px;height:40px;min-width:40px;padding:0 12px;font-size:15px;cursor:pointer}
+.ib:active{opacity:.7}
+.ib.on{outline:2px solid var(--accent)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sizes{display:flex;gap:6px;overflow-x:auto}
+.chip{border:0;background:var(--panel);color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer;white-space:nowrap}
+.chip.sel{background:var(--accent);color:#1a1205;font-weight:700}
+.status{display:flex;justify-content:space-between;align-items:center;font-variant-numeric:tabular-nums}
+.status b{font-size:20px}
+#fish{font-size:20px;letter-spacing:2px;min-width:60px}
+#fish .gone{filter:grayscale(1);opacity:.25}
+#count{min-width:60px;text-align:right}
+#board{position:relative;display:grid;width:100%;aspect-ratio:1;border:3px solid var(--edge);border-radius:12px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--edge)}
+#lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+#lines .rl{stroke:var(--edge);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;fill:none}
+#lines .gl{stroke:var(--grid);stroke-width:1;fill:none}
+.cell{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden;background:hsl(var(--h) calc(var(--s)*var(--sk)*1%) calc(var(--l)*var(--lk)*1%));cursor:pointer;color:#141414}
+.cell .g{position:absolute;opacity:.15;font-size:.65em;pointer-events:none}
+.cell .m{pointer-events:none;line-height:1;position:relative;z-index:1}
+.cell.x .m::before{content:"✕";font-weight:700;opacity:.7}
+.cell.ax .m::before{content:"·";font-size:1.6em;opacity:.55}
+.cell.q .m::before{content:var(--qch);font-size:1.35em}
+.cell.q .g,.cell.x .g{display:none}
+.cell.x,.cell.ax,#board.mem .cell.x,#board.mem .cell.ax{background-image:linear-gradient(rgba(0,0,0,.2),rgba(0,0,0,.2))}
+.cell.bad{box-shadow:inset 0 0 0 3px var(--bad)}
+.cell.bad.q .m{color:var(--bad)}
+.cell.flash{background:var(--bad)!important}
+.cell.hu::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.3);box-shadow:inset 0 0 0 2px rgba(255,255,255,.9)}
+.cell.ht{outline:3px dashed var(--accent);outline-offset:-5px}
+.cell.ht .m::before{content:"✕";font-weight:700;opacity:.4}
+.cell.hq{outline:3px solid var(--good);outline-offset:-5px}
+.cell.hq:not(.q) .m::before{content:var(--qch);font-size:1.35em;opacity:.45}
+.htitle{font-weight:700;font-size:16px;margin-bottom:4px}
+.rc{display:inline-block;padding:0 7px;border-radius:6px;color:#141414;font-weight:700;background:hsl(var(--h) calc(var(--s)*1%) calc(var(--l)*1%))}
+.legend{color:var(--mute);font-size:12px;margin:-4px 0 10px}
+.legend span{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px}
+.lg1{background:rgba(255,255,255,.45);box-shadow:inset 0 0 0 2px #fff}
+.lg2{outline:2px dashed var(--accent);outline-offset:-2px}
+.cell.he{outline:3px solid var(--bad);outline-offset:-5px}
+#board.mem .cell{background:var(--neutral);color:var(--ink)}
+#board.mem{background:var(--neutral)}
+#board.mem .cell .g,#board.mem #lines .rl{display:none}
+.tools{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tools .ib{height:52px;font-size:12.5px;padding:0 4px}
+.tools .ib span{display:block;font-size:18px}
+#peek{display:none}
+.hintbox{display:none;background:var(--panel);border-radius:14px;padding:12px 14px;border-left:4px solid var(--accent)}
+.hintbox.open{display:block}
+.hintbox p{margin:0 0 10px}
+.hintbox .ib{height:36px;font-size:14px}
+.help{color:var(--mute);font-size:12.5px;text-align:center}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:5}
+.sheet.open{display:flex}
+.card{background:var(--panel);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}
+.card.center{border-radius:18px;margin:auto 16px;text-align:center}
+.card h2{margin:0 0 10px;font-size:17px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(127,127,127,.15)}
+.opt small{display:block;color:var(--mute);font-size:12px}
+.sw{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:99px;background:#555;position:relative;flex:none;cursor:pointer}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.sw:checked{background:var(--accent)}
+.sw:checked::after{left:21px}
+select,input[type=text]{background:var(--bg);color:var(--ink);border:1px solid rgba(127,127,127,.3);border-radius:8px;padding:7px 8px;font-size:14px}
+.big{font-size:44px;margin:4px 0}
+.stats{color:var(--mute);font-size:13px;margin:6px 0 14px}
+#code{cursor:pointer;text-decoration:underline dotted}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>Queens Lite</h1><div class="sub"><span id="mode">Classic</span> · <span id="code" title="Tap to copy">#</span></div></div>
+    <div class="row">
+      <button class="ib" id="daily" title="Daily puzzle">📅</button>
+      <button class="ib" id="gear" title="Settings">⚙︎</button>
+    </div>
+  </header>
+  <div class="sizes" id="sizes"></div>
+  <div class="status">
+    <div id="fish"></div>
+    <b id="time">0:00</b>
+    <div class="sub" id="count">0 / 8</div>
+  </div>
+  <div id="board"></div>
+  <div class="hintbox" id="hintBox">
+    <div class="htitle" id="hintTitle"></div>
+    <p id="hintTxt"></p>
+    <div class="legend" id="hintLegend"><span class="lg1"></span> glowing = squares the reason is about &nbsp; <span class="lg2"></span> dashed = change these</div>
+    <div class="row"><button class="ib on" id="hintApply">Mark it</button><button class="ib" id="hintClose">Got it</button></div>
+  </div>
+  <div class="tools">
+    <button class="ib" id="undo"><span>↶</span>Undo</button>
+    <button class="ib" id="hint"><span>💡</span>Hint</button>
+    <button class="ib" id="solve1"><span>👑</span>Solve 1</button>
+    <button class="ib" id="clear"><span>⟲</span>Clear</button>
+    <button class="ib" id="new"><span>✦</span>New</button>
+  </div>
+  <button class="ib" id="peek">👁 Hold to peek (+5s)</button>
+  <div class="help">One queen in every row, column and color. Queens can't touch, not even diagonally.<br><span id="tapHelp"></span> Drag to paint ✕.<br>Hint explains the next step (+5s) · Solve 1 places a queen (+15s)</div>
+</div>
+
+<div class="sheet" id="settings"><div class="card">
+  <h2>Settings & extras</h2>
+  <div class="opt"><div>Auto-mark<small>Dot out cells a queen rules out</small></div><input type="checkbox" class="sw" data-k="auto"></div>
+  <div class="opt"><div>Double-tap for queen<small>Tap = ✕, double-tap = queen</small></div><input type="checkbox" class="sw" data-k="dbl"></div>
+  <div class="opt"><div>Show conflicts<small>Outline clashing queens in red</small></div><input type="checkbox" class="sw" data-k="conf"></div>
+  <div class="opt"><div>Timer</div><input type="checkbox" class="sw" data-k="timer"></div>
+  <div class="opt"><div>🐟 Fish lives<small>3 lives — a wrong queen costs one fish</small></div><input type="checkbox" class="sw" data-k="lives"></div>
+  <div class="opt"><div>🧠 Memory mode<small>Colors vanish after 10s. Hold Peek to see them again</small></div><input type="checkbox" class="sw" data-k="mem"></div>
+  <div class="opt"><div>⚡ Blitz<small>Beat the clock (n × 20s), +10s per correct queen</small></div><input type="checkbox" class="sw" data-k="blitz"></div>
+  <div class="opt"><div>🐱 Cat queens</div><input type="checkbox" class="sw" data-k="cat"></div>
+  <div class="opt"><div>Pattern symbols<small>Color-blind friendly shapes per region</small></div><input type="checkbox" class="sw" data-k="sym"></div>
+  <div class="opt"><div>Theme<small>Dark saves battery on OLED screens</small></div>
+    <select data-k="theme"><option value="dark">Dark</option><option value="light">Light</option><option value="auto">Auto</option></select></div>
+  <div class="opt"><div>Play a code<small>e.g. 8-123456 from a friend</small></div>
+    <div class="row"><input type="text" id="codeIn" size="9" placeholder="8-123456"><button class="ib" id="codeGo">Go</button></div></div>
+  <div class="stats" id="statsTxt"></div>
+  <button class="ib" style="width:100%" id="closeSet">Done</button>
+</div></div>
+
+<div class="sheet" id="end"><div class="card center">
+  <div class="big" id="endEmoji">👑</div>
+  <h2 id="endTitle">Solved!</h2>
+  <div class="stats" id="endTxt"></div>
+  <div class="row" style="justify-content:center">
+    <button class="ib" id="endClose">Look</button>
+    <button class="ib on" id="endNext">Next puzzle</button>
+  </div>
+</div></div>
+
+<script>
+// Queens puzzle generator + solver (shared by page and test)
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+function countSolutions(reg,n,limit,out){
+  // reg: Int8Array n*n region ids. Backtrack row by row.
+  let count=0;const sol=new Int8Array(n);
+  function rec(r,colMask,regMask,prev){
+    if(r===n){count++;if(out&&count===1)out.first=Array.from(sol);if(out&&count===2)out.second=Array.from(sol);return count>=limit}
+    for(let c=0;c<n;c++){
+      if(colMask&(1<<c))continue;
+      if(prev>=0&&Math.abs(c-prev)<2)continue;
+      const g=reg[r*n+c];if(regMask&(1<<g))continue;
+      sol[r]=c;
+      if(rec(r+1,colMask|(1<<c),regMask|(1<<g),c))return true;
+    }
+    return false;
+  }
+  rec(0,0,0,-1);return count;
+}
+
+function randomQueens(n,rnd){
+  const cols=[...Array(n).keys()];const sol=new Array(n);
+  function rec(r){
+    if(r===n)return true;
+    const order=cols.slice().sort(()=>rnd()-.5);
+    for(const c of order){
+      if(sol.slice(0,r).includes(c))continue;
+      if(r>0&&Math.abs(sol[r-1]-c)<2)continue;
+      sol[r]=c;if(rec(r+1))return true;
+    }
+    return false;
+  }
+  rec(0);return sol;
+}
+
+function growRegions(n,sol,rnd){
+  const reg=new Int8Array(n*n).fill(-1);
+  const w=[];
+  for(let r=0;r<n;r++){reg[r*n+sol[r]]=r;w.push(.3+rnd()*1.4)}
+  let left=n*n-n;
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  while(left>0){
+    // pick a region weighted, then a random frontier cell of it
+    let tot=0;for(const x of w)tot+=x;
+    let p=rnd()*tot,g=0;for(;g<n-1;g++){p-=w[g];if(p<=0)break}
+    const front=[];
+    for(let i=0;i<n*n;i++)if(reg[i]===g){
+      const r=(i/n)|0,c=i%n;
+      for(const[dr,dc]of dirs){const rr=r+dr,cc=c+dc;if(rr>=0&&rr<n&&cc>=0&&cc<n&&reg[rr*n+cc]===-1)front.push(rr*n+cc)}
+    }
+    if(!front.length){w[g]=0;if(w.every(x=>x===0))break;continue}
+    reg[front[(rnd()*front.length)|0]]=g;left--;
+  }
+  return reg;
+}
+
+function neighborsOf(i,n){const r=(i/n)|0,c=i%n,o=[];if(r>0)o.push(i-n);if(r<n-1)o.push(i+n);if(c>0)o.push(i-1);if(c<n-1)o.push(i+1);return o}
+
+function connected(reg,n,g,skip){
+  const cells=[];for(let i=0;i<n*n;i++)if(reg[i]===g&&i!==skip)cells.push(i);
+  if(!cells.length)return false;
+  const seen=new Set([cells[0]]),st=[cells[0]];
+  while(st.length){const i=st.pop();for(const j of neighborsOf(i,n))if(j!==skip&&reg[j]===g&&!seen.has(j)){seen.add(j);st.push(j)}}
+  return seen.size===cells.length;
+}
+
+function generate(n,rnd){
+  for(let attempt=0;attempt<400;attempt++){
+    const sol=randomQueens(n,rnd);
+    const reg=growRegions(n,sol,rnd);
+    const queenCell=new Set(sol.map((c,r)=>r*n+c));
+    // local repair: move cells that enable alternative solutions
+    for(let step=0;step<60;step++){
+      const out={};
+      const k=countSolutions(reg,n,2,out);
+      if(k===1)return{n,reg:Array.from(reg),sol};
+      // find a cell used by the alt solution that's not a real queen, push it into a neighbour region
+      const alt=out.first.join()===sol.join()?out.second:out.first;
+      const cand=[];
+      for(let r=0;r<n;r++){const i=r*n+alt[r];if(!queenCell.has(i))cand.push(i)}
+      let moved=false;
+      cand.sort(()=>rnd()-.5);
+      for(const i of cand){
+        const g=reg[i];
+        const nb=neighborsOf(i,n).map(j=>reg[j]).filter(x=>x!==g);
+        if(!nb.length)continue;
+        if(!connected(reg,n,g,i))continue;
+        reg[i]=nb[(rnd()*nb.length)|0];moved=true;break;
+      }
+      if(!moved)break;
+    }
+  }
+  return null;
+}
+
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem('ql.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('ql.'+k,JSON.stringify(v))}catch(e){}}};
+const S=Object.assign({auto:true,conf:true,timer:true,lives:false,mem:false,blitz:false,cat:false,sym:false,dbl:false,theme:'dark',size:8},store.get('settings',{}));
+const ST=Object.assign({solved:0,best:{},streak:0,lastDaily:''},store.get('stats',{}));
+const PAL=[[174,50,62],[100,50,72],[25,40,52],[262,55,72],[2,62,68],[212,30,72],[330,75,82],[46,80,62],[22,85,66],[198,70,74]];
+const NAMES=['Teal','Green','Brown','Purple','Red','Slate','Pink','Yellow','Orange','Sky'];
+const SYM='●▲■◆★♥✚◐✿☾';
+let memOn=false,awarded=new Set(),P,marks,undoStack,lives,hints,penalty,done,cells,elapsed,startT,tick,memTimer,daily=false,ATT,UNITS,H=null;
+
+function applyTheme(){const r=document.documentElement;const light=S.theme==='light'||(S.theme==='auto'&&matchMedia('(prefers-color-scheme: light)').matches);r.classList.toggle('light',light);r.style.setProperty('--qch',S.cat?'"🐱"':'"♛"');$('#tapHelp').textContent=S.dbl?'Tap: ✕ · Double-tap: queen.':'Tap: ✕ → queen → empty.'}
+function save(){store.set('settings',S);store.set('stats',ST)}
+function dayKey(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+function todayKey(){return dayKey(new Date())}
+
+function start(n,seed,isDaily){
+  daily=!!isDaily;
+  P=generate(n,mulberry32(seed));P.seed=seed;
+  marks=new Int8Array(n*n);undoStack=[];lives=3;hints=0;penalty=0;done=false;elapsed=0;startT=null;
+  clearHint();build();resume();
+  $('#code').textContent='#'+n+'-'+seed;
+  $('#mode').textContent=daily?'Daily '+String(seed).replace(/(\d{4})(\d\d)(\d\d)/,'$3/$2'):[S.blitz&&'Blitz',S.lives&&'Lives',S.mem&&'Memory'].filter(Boolean).join(' + ')||'Classic';
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('sel',+c.dataset.n===n&&!daily));
+  $('#daily').classList.toggle('on',daily);
+  clearTimeout(memTimer);memOn=false;awarded=new Set();$('#board').classList.remove('mem');
+  const mem=S.mem&&!daily;$('#peek').style.display=mem?'block':'none';
+  if(mem)memTimer=setTimeout(()=>{if(!done){memOn=true;$('#board').classList.add('mem')}},10000);
+}
+function newRandom(){start(S.size,(Math.random()*1e6)|0,false)}
+
+function build(){
+  const n=P.n,b=$('#board');b.innerHTML='';b.style.gridTemplateColumns=b.style.gridTemplateRows=`repeat(${n},1fr)`;
+  b.style.fontSize=Math.round(Math.min(innerWidth,480)*0.5/n)+'px';
+  cells=[];
+  for(let i=0;i<n*n;i++){
+    const g=P.reg[i],e=document.createElement('div');
+    const [h,s,l]=PAL[g%PAL.length];e.className='cell';e.style.cssText=`--h:${h};--s:${s};--l:${l}`;
+    e.innerHTML=(S.sym?`<span class="g">${SYM[g]}</span>`:'')+'<span class="m"></span>';
+    e.dataset.i=i;b.appendChild(e);cells.push(e);
+  }
+  // one SVG overlay for all lines so region outlines join up cleanly
+  let rl='',gl='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++){const i=r*n+c,g=P.reg[i];
+    if(c<n-1){const s=`M${c+1} ${r}V${r+1}`;if(P.reg[i+1]!==g)rl+=s;else gl+=s}
+    if(r<n-1){const s=`M${c} ${r+1}H${c+1}`;if(P.reg[i+n]!==g)rl+=s;else gl+=s}}
+  b.insertAdjacentHTML('beforeend',`<svg id="lines" viewBox="0 0 ${n} ${n}" preserveAspectRatio="none"><path class="gl" vector-effect="non-scaling-stroke" d="${gl}"/><path class="rl" vector-effect="non-scaling-stroke" d="${rl}"/></svg>`);
+  // precompute what each cell attacks, and the row/col/region units
+  ATT=[];for(let i=0;i<n*n;i++){const r=(i/n)|0,c=i%n,a=[];for(let j=0;j<n*n;j++){if(j===i)continue;const rr=(j/n)|0,cc=j%n;if(rr===r||cc===c||P.reg[j]===P.reg[i]||(Math.abs(rr-r)<2&&Math.abs(cc-c)<2))a.push(j)}ATT.push(a)}
+  UNITS=[];for(let k=0;k<n;k++){const R=[],C=[],G=[];for(let i=0;i<n*n;i++){if(((i/n)|0)===k)R.push(i);if(i%n===k)C.push(i);if(P.reg[i]===k)G.push(i)}
+    UNITS.push({t:'row',id:k,cells:R},{t:'col',id:k,cells:C},{t:'reg',id:k,cells:G})}
+  update();
+}
+
+function analyze(){
+  const n=P.n,q=[],bad=new Set(),cover=new Uint8Array(n*n);
+  for(let i=0;i<n*n;i++)if(marks[i]===2)q.push(i);
+  for(const i of q)for(const j of ATT[i]){cover[j]=1;if(marks[j]===2){bad.add(i);bad.add(j)}}
+  return{q,bad,cover};
+}
+function update(){
+  const {q,bad,cover}=analyze();
+  cells.forEach((e,i)=>{const m=marks[i];
+    e.classList.toggle('q',m===2);e.classList.toggle('x',m===1);
+    e.classList.toggle('ax',m===0&&S.auto&&cover[i]===1);
+    e.classList.toggle('bad',S.conf&&bad.has(i));});
+  $('#count').textContent=q.length+' / '+P.n;
+  $('#fish').innerHTML=S.lives&&!daily?[0,1,2].map(k=>`<span class="${k<lives?'':'gone'}">🐟</span>`).join(''):'';
+  if(!done&&q.length===P.n&&bad.size===0)win();
+}
+
+function setMark(i,v,batch){if(marks[i]===v)return;batch.push([i,marks[i]]);marks[i]=v}
+function commit(batch){if(batch.length)undoStack.push(batch)}
+function flash(i){const e=cells[i];e.classList.add('flash');setTimeout(()=>e.classList.remove('flash'),350)}
+
+let lastTap={i:-1,t:0};
+function tapCell(i){
+  if(done)return;ensureTimer();clearHint();
+  let next=(marks[i]+1)%3;
+  if(S.dbl){const t=Date.now();
+    if(lastTap.i===i&&t-lastTap.t<350&&lastTap.prev!==2){ // second tap: turn the first tap's ✕ into a queen
+      const b=undoStack.pop();if(b)for(let k=b.length-1;k>=0;k--)marks[b[k][0]]=b[k][1];next=2;lastTap={i:-1,t:0}}
+    else{next=marks[i]===0?1:0;lastTap={i,t,prev:marks[i]}}}
+  const n=P.n,batch=[];
+  if(next===2&&S.lives&&!daily&&P.sol[(i/n)|0]!==i%n){
+    lives--;setMark(i,1,batch);commit(batch);flash(i);update();
+    if(lives<=0)lose('Out of fish!');return;
+  }
+  setMark(i,next,batch);commit(batch);
+  if(next===2&&S.blitz&&!daily&&P.sol[(i/n)|0]===i%n&&!awarded.has(i)){awarded.add(i);penalty-=10}
+  update();
+}
+
+// ---------- Hint engine: finds the simplest logical step and explains it ----------
+function nm(u){if(u.t==='row')return 'row '+(u.id+1);if(u.t==='col')return 'column '+(u.id+1);
+  const [h,s,l]=PAL[u.id%PAL.length];return `<span class="rc" style="--h:${h};--s:${s};--l:${l}">${NAMES[u.id]}${S.sym?' '+SYM[u.id]:''}</span>`}
+const Cap=s=>s.replace(/^(row|column)/,m=>m[0].toUpperCase()+m.slice(1));
+function joinNm(us){const a=us.map(nm);return a.length<3?a.join(' and '):a.slice(0,-1).join(', ')+' and '+a.at(-1)}
+function keyOf(t,i){const n=P.n;return t==='row'?(i/n)|0:t==='col'?i%n:P.reg[i]}
+function combos(arr,k,f){const pick=[];(function rec(s){if(pick.length===k)return f(pick.slice());for(let x=s;x<arr.length;x++){pick.push(arr[x]);if(rec(x+1))return true;pick.pop()}})(0)}
+const sq=k=>k===1?'this square':`these ${k} squares`;
+function clashWhy(a,b){const n=P.n,ra=(a/n)|0,rb=(b/n)|0,ca=a%n,cb=b%n;
+  if(ra===rb)return 'are in the same row';if(ca===cb)return 'are in the same column';
+  if(P.reg[a]===P.reg[b])return 'are both in '+nm({t:'reg',id:P.reg[a]});return 'are touching (diagonals count)'}
+
+function relText(av,t){const n=P.n,tr=(t/n)|0,tc=t%n,cnt={row:0,col:0,color:0,touch:0};
+  for(const c of av){const r=(c/n)|0,k=c%n;cnt[r===tr?'row':k===tc?'col':P.reg[c]===P.reg[t]?'color':'touch']++}
+  const tot=av.length,col=nm({t:'reg',id:P.reg[t]}),parts=[];
+  const ph={row:x=>`${x} in its row`,col:x=>`${x} in its column`,color:x=>`${x} ${col} like it`,touch:x=>`${x} touching it`};
+  const keys=Object.keys(cnt).filter(k=>cnt[k]);
+  if(keys.length===1)return 'All of them are '+ph[keys[0]]('').trim().replace(/^in/,'in').replace(/^touching/,'touching')+'.';
+  keys.forEach((k,ix)=>{const x=cnt[k];parts.push((ix===0?Cap(String(x)):x)+' '+(x===1?'is':'are')+' '+ph[k]('').trim())});
+  return parts.slice(0,-1).join(', ')+' and '+parts.at(-1)+'.'}
+function findHint(){
+  const n=P.n,{q,bad,cover}=analyze(),N=n*n;
+  const free=i=>marks[i]===0&&!cover[i];
+  // 1. mistakes first
+  if(bad.size){const a=[...bad][0],b=ATT[a].find(j=>bad.has(j)&&marks[j]===2);
+    return{title:'⚠️ Two queens break a rule',why:`These two queens ${clashWhy(a,b)}. Remove one of them.`,targets:[a,b],kind:'err'}}
+  for(const i of q)if(P.sol[(i/n)|0]!==i%n){
+    const dead=UNITS.find(u=>!u.cells.some(j=>marks[j]===2)&&!u.cells.some(free));
+    return{title:'⚠️ This queen is in the wrong spot',why:dead?`With it here, ${nm(dead)} has no open squares left, so ${nm(dead)} can't get a queen.`:"It doesn't break a rule yet, but the puzzle can't be finished with it there.",
+      targets:[i],unit:dead?dead.cells:[],kind:'err',act:'clear'}}
+  for(let i=0;i<N;i++)if(marks[i]===1&&P.sol[(i/n)|0]===i%n)
+    return{title:'⚠️ This ✕ is a mistake',why:'A queen actually belongs on this square.',targets:[i],kind:'err',act:'clear'};
+  // 2. squares already blocked by queens (when auto-mark is off)
+  if(!S.auto){const t=[];for(let i=0;i<N;i++)if(marks[i]===0&&cover[i])t.push(i);
+    if(t.length)return{title:`✕ ${sq(t.length)}`,why:'Your queens already block them: they share a row, column or color with a queen, or touch one.',targets:t,act:'x'}}
+  const open=UNITS.filter(u=>!u.cells.some(j=>marks[j]===2)).map(u=>Object.assign({},u,{av:u.cells.filter(free)}));
+  // 3. only one spot left
+  for(const u of open)if(u.av.length===1)
+    return{title:'👑 Place a queen here',why:`It's the only open square left in ${nm(u)}, and every ${u.t==='reg'?'color':u.t} needs a queen.`,targets:u.av,unit:u.cells,act:'q'};
+  // 4. a group squeezed into one line (or the reverse)
+  const pigeon=k=>{let res=null;
+    for(const A of['reg','row','col'])for(const B of['row','col','reg']){if(A===B||res)continue;
+      const As=open.filter(u=>u.t===A);if(As.length<=k)continue;
+      combos(As,k,sub=>{const ks=new Set();for(const u of sub)for(const c of u.av)ks.add(keyOf(B,c));
+        if(ks.size!==k)return false;
+        const inSub=new Set(sub.flatMap(u=>u.cells));
+        const t=[];for(let i=0;i<N;i++)if(free(i)&&ks.has(keyOf(B,i))&&!inSub.has(i))t.push(i);
+        if(!t.length)return false;
+        const Bu=[...ks].map(id=>UNITS.find(u=>u.t===B&&u.id===id));
+        const a=nm(sub[0]),b=nm(Bu[0]);
+        const why=k===1
+          ?(A==='reg'?`All of ${a}'s open squares (glowing) are in ${b}. So ${a}'s queen will be in ${b}, and ${b} can't have a second queen.`
+                     :`All of ${Cap(a)}'s open squares (glowing) are inside ${b}. So ${Cap(a)}'s queen will be ${b}'s queen, and ${b} can't have a second one.`)
+          :`${Cap(joinNm(sub))} can only go inside ${joinNm(Bu)} (glowing). That's ${k} queens for ${k} ${B==='reg'?'colors':B+'s'}, so they fill them up — nothing else there can be a queen.`;
+        res={title:`✕ ${sq(t.length)}`,why,targets:t,unit:sub.flatMap(u=>u.av),act:'x'};return true});}
+    return res};
+  let h=pigeon(1);if(h)return h;
+  // 5. squares that every option of some group would block
+  for(const u of open){if(u.av.length<2)continue;const cnt=new Uint8Array(N);
+    for(const c of u.av)for(const j of ATT[c])cnt[j]++;
+    const t=[];for(let i=0;i<N;i++)if(cnt[i]===u.av.length&&free(i)&&!u.cells.includes(i))t.push(i);
+    if(t.length){let why=`${Cap(nm(u))}'s queen has to go on one of the ${u.av.length} glowing squares. `;
+      if(t.length===1)why+=relText(u.av,t[0])+' So whichever one gets the queen, this square is blocked.';
+      else why+="Every one of them would block these squares (they'd share a row, column or color with it, or touch it). So they can never be queens.";
+      return{title:`✕ ${sq(t.length)}`,why,targets:t,unit:u.av,act:'x'}}}
+  for(let k=2;k<=4;k++){h=pigeon(k);if(h)return h}
+  // 6. lookahead: a queen here would leave some group with nowhere to go
+  for(let depth=0;depth<=1;depth++)for(let c=0;c<N;c++){if(!free(c))continue;
+    const r=simulate(c,free,depth?20:0);if(!r)continue;
+    const chain=r.chain.map(x=>nm(x.u)).join(', then ');
+    const why=r.chain.length
+      ?`Imagine a queen here. Then ${chain} would be forced into ${r.chain.length>1?'their':'its'} last open square, and after that ${nm(r.dead)} (glowing) would have nowhere left for a queen.`
+      :`Imagine a queen here: it would block every open square of ${nm(r.dead)} (glowing), leaving ${nm(r.dead)} with no queen.`;
+    return{title:'✕ this square',why,targets:[c],unit:r.dead.av0.concat(r.chain.map(x=>x.cell)),act:'x'}}
+  return{title:'🤔 No simple step here',why:'This position needs deeper trial and error. Tap Solve 1 if you want a queen placed for you.',targets:[]};
+}
+function simulate(c,free,maxForced){
+  const hit=new Set(ATT[c]),placed=new Set([c]),chain=[];
+  const open=()=>UNITS.filter(u=>!u.cells.some(j=>marks[j]===2||placed.has(j)));
+  for(;;){
+    let forced=null;
+    for(const u of open()){const av=u.cells.filter(j=>free(j)&&!hit.has(j));
+      if(!av.length)return{dead:Object.assign({av0:u.cells.filter(free)},u),chain};
+      if(av.length===1&&!forced)forced={u,cell:av[0]}}
+    if(!forced||chain.length>=maxForced)return null;
+    chain.push(forced);placed.add(forced.cell);for(const j of ATT[forced.cell])hit.add(j);
+  }
+}
+function showHint(){
+  if(done)return;ensureTimer();clearHint();
+  H=findHint();hints++;penalty+=5;showTime();
+  (H.unit||[]).forEach(i=>cells[i].classList.add('hu'));
+  H.targets.forEach(i=>cells[i].classList.add(H.kind==='err'?'he':H.act==='q'?'hq':'ht'));
+  $('#hintTitle').textContent=H.title;$('#hintTxt').innerHTML='<b>Why:</b> '+H.why;
+  $('#hintLegend').style.display=H.unit&&H.unit.length&&H.kind!=='err'?'':'none';
+  const ap=$('#hintApply');ap.style.display=H.act?'':'none';
+  ap.textContent=H.act==='q'?'Place queen':H.act==='clear'?'Remove it':'Mark ✕';
+  $('#hintBox').classList.add('open');
+}
+function clearHint(){H=null;if(cells)cells.forEach(e=>e.classList.remove('hu','ht','hq','he'));$('#hintBox').classList.remove('open')}
+$('#hint').onclick=showHint;
+$('#hintClose').onclick=clearHint;
+$('#hintApply').onclick=()=>{if(!H||done)return;const b=[],v=H.act==='q'?2:H.act==='clear'?0:1;H.targets.forEach(i=>setMark(i,v,b));commit(b);clearHint();update()};
+
+// Solve 1: fix a mistake or place one correct queen
+$('#solve1').onclick=()=>{if(done)return;ensureTimer();clearHint();const n=P.n,b=[];let target=-1;
+  for(let i=0;i<n*n&&target<0;i++){const ok=P.sol[(i/n)|0]===i%n;if((marks[i]===2&&!ok)||(marks[i]===1&&ok)){target=i;setMark(i,0,b)}}
+  if(target<0){const rows=[...Array(n).keys()].filter(r=>marks[r*n+P.sol[r]]!==2);if(!rows.length)return;
+    const r=rows[(Math.random()*rows.length)|0];target=r*n+P.sol[r];setMark(target,2,b)}
+  commit(b);hints++;penalty+=15;cells[target].classList.add('hq');setTimeout(()=>cells[target]&&cells[target].classList.remove('hq'),1200);update();showTime()};
+
+// pointer: tap vs drag-paint
+let drag=null;
+const board=$('#board');
+board.addEventListener('pointerdown',e=>{const t=e.target.closest('.cell');if(!t||done)return;
+  board.setPointerCapture(e.pointerId);const i=+t.dataset.i;
+  drag={start:i,last:i,moved:false,paint:marks[i]===1?0:1,batch:[]};});
+board.addEventListener('pointermove',e=>{if(!drag)return;
+  const el=document.elementFromPoint(e.clientX,e.clientY),t=el&&el.closest&&el.closest('.cell');if(!t)return;
+  const i=+t.dataset.i;if(i===drag.last)return;
+  if(!drag.moved){drag.moved=true;ensureTimer();clearHint();paintCell(drag.start)}
+  drag.last=i;paintCell(i);});
+function paintCell(i){if(marks[i]===2)return;if(drag.paint===1&&marks[i]===0)setMark(i,1,drag.batch);else if(drag.paint===0&&marks[i]===1)setMark(i,0,drag.batch);update()}
+function endDrag(){if(!drag)return;if(drag.moved)commit(drag.batch);else tapCell(drag.start);drag=null}
+board.addEventListener('pointerup',endDrag);board.addEventListener('pointercancel',()=>{if(drag&&drag.moved)commit(drag.batch);drag=null});
+
+// timer: 1 tick/sec only while visible & playing
+function now(){return elapsed+(startT?Date.now()-startT:0)}
+function ensureTimer(){if(!startT&&!done&&!document.hidden){startT=Date.now();runTick()}}
+function runTick(){clearInterval(tick);if(startT&&(S.timer||S.blitz))tick=setInterval(showTime,1000);showTime()}
+function pause(){if(startT){elapsed+=Date.now()-startT;startT=null}clearInterval(tick)}
+function resume(){clearInterval(tick);showTime()}
+function secs(){return Math.floor(now()/1000)+penalty}
+function fmt(s){s=Math.max(0,s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function showTime(){const t=$('#time');
+  if(S.blitz&&!daily){const left=P.n*20-secs();t.textContent='⏱ '+fmt(left);t.style.color=left<=10?'var(--bad)':'';if(left<=0&&!done&&startT)lose("Time's up!");}
+  else{t.style.color='';t.textContent=S.timer?fmt(secs()):''}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else if(elapsed>0&&!done)ensureTimer()});
+
+function win(){done=true;pause();clearHint();clearTimeout(memTimer);board.classList.remove('mem');
+  const s=secs(),n=P.n;ST.solved++;
+  let extra='';
+  if(!daily){const b=ST.best[n];if(hints===0&&(!b||s<b)){ST.best[n]=s;extra=b?' · New best!':' · First best!'}}
+  else{const k=todayKey(),yk=dayKey(new Date(Date.now()-864e5));
+    if(ST.lastDaily!==k){ST.streak=ST.lastDaily===yk?ST.streak+1:1;ST.lastDaily=k}extra=' · Daily streak 🔥'+ST.streak}
+  save();
+  $('#endEmoji').textContent=S.cat?'😺':'👑';$('#endTitle').textContent='Solved!';
+  $('#endTxt').textContent=`${n}×${n} in ${fmt(s)}${hints?' · '+hints+' help'+(hints>1?'s':''):''}${extra}`;
+  $('#end').classList.add('open');}
+function lose(msg){done=true;pause();clearHint();board.classList.remove('mem');
+  marks=new Int8Array(P.n*P.n);P.sol.forEach((c,r)=>marks[r*P.n+c]=2);update();
+  $('#endEmoji').textContent=S.cat?'🙀':'💀';$('#endTitle').textContent=msg;$('#endTxt').textContent='Here was the answer.';
+  $('#end').classList.add('open');}
+
+// tools
+$('#undo').onclick=()=>{if(done)return;clearHint();const b=undoStack.pop();if(!b)return;for(let k=b.length-1;k>=0;k--)marks[b[k][0]]=b[k][1];update()};
+$('#clear').onclick=()=>{if(done)return;clearHint();const b=[];for(let i=0;i<marks.length;i++)setMark(i,0,b);commit(b);update()};
+$('#new').onclick=newRandom;
+const peek=$('#peek');
+peek.addEventListener('pointerdown',()=>{if(board.classList.contains('mem')){board.classList.remove('mem');penalty+=5;showTime()}});
+const unpeek=()=>{if(memOn&&!done)board.classList.add('mem')};
+peek.addEventListener('pointerup',unpeek);peek.addEventListener('pointerleave',unpeek);
+$('#daily').onclick=()=>start(8,todayKey(),true);
+$('#code').onclick=()=>{try{navigator.clipboard.writeText($('#code').textContent.slice(1))}catch(e){}};
+$('#endNext').onclick=()=>{$('#end').classList.remove('open');newRandom()};
+$('#endClose').onclick=()=>$('#end').classList.remove('open');
+
+// sizes
+for(let n=5;n<=10;n++){const c=document.createElement('button');c.className='chip';c.dataset.n=n;c.textContent=n+'×'+n;
+  c.onclick=()=>{S.size=n;save();newRandom()};$('#sizes').appendChild(c)}
+
+// settings
+function statsText(){const b=Object.entries(ST.best).map(([n,s])=>`${n}×${n} ${fmt(s)}`).join(' · ');
+  return `Solved ${ST.solved} · Daily streak ${ST.streak}${b?'<br>Best: '+b:''}`}
+$('#gear').onclick=()=>{document.querySelectorAll('[data-k]').forEach(el=>{const k=el.dataset.k;if(el.type==='checkbox')el.checked=S[k];else el.value=S[k]});$('#statsTxt').innerHTML=statsText();$('#settings').classList.add('open')};
+document.querySelectorAll('[data-k]').forEach(el=>el.onchange=()=>{const k=el.dataset.k;S[k]=el.type==='checkbox'?el.checked:el.value;save();applyTheme();
+  if(k==='sym'||k==='cat'){clearHint();build()}else if(['lives','mem','blitz'].includes(k))start(P.n,P.seed,daily);else{update();runTick()}});
+$('#closeSet').onclick=()=>$('#settings').classList.remove('open');
+$('#settings').onclick=e=>{if(e.target.id==='settings')e.target.classList.remove('open')};
+$('#codeGo').onclick=()=>{const m=$('#codeIn').value.trim().replace('#','').match(/^(\d+)-(\d+)$/);if(!m)return;const n=Math.min(10,Math.max(5,+m[1]));$('#settings').classList.remove('open');start(n,+m[2],false)};
+matchMedia('(prefers-color-scheme: light)').addEventListener('change',applyTheme);
+addEventListener('resize',()=>{if(P)board.style.fontSize=Math.round(Math.min(innerWidth,480)*0.5/P.n)+'px'});
+
+applyTheme();newRandom();
+</script>
+</body>
+</html>
