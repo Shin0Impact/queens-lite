@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Leaderboard rules. Anyone can read the board. Each player can only write
+// their own entry, the fields must look right, and the total can only go up
+// by a realistic amount at a time. The highest possible single puzzle is
+// 1,000 queen points x3 difficulty x10 streak = 30,000.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scores/{uid} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && validEntry(request.resource.data)
+        && request.resource.data.total <= 30000;
+
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && validEntry(request.resource.data)
+        && request.resource.data.total >= resource.data.total
+        && request.resource.data.total - resource.data.total <= 30000;
+
+      allow delete: if false;
+    }
+
+    function validEntry(d) {
+      return d.keys().hasOnly(['name', 'total', 'bestStreak', 'solved', 'updated'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 20
+        && d.total is int && d.total >= 0
+        && d.bestStreak is int && d.bestStreak >= 0
+        && d.solved is int && d.solved >= 0
+        && d.updated is timestamp;
+    }
+  }
+}
