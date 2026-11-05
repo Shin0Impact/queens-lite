@@ -1,0 +1,9 @@
+{
+  "appId": "com.shin0impact.queenslite",
+  "appName": "Queens Lite",
+  "webDir": "www",
+  "backgroundColor": "#141416",
+  "android": {
+    "backgroundColor": "#141416"
+  }
+}
