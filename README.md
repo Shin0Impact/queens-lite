@@ -2,6 +2,16 @@
 
 A small, battery-friendly version of the Queens logic puzzle (also known as Star Battle) that runs in the browser.
 
+## At a glance
+
+| | |
+|---|---|
+| **What** | Battery-friendly Queens (Star Battle) logic puzzle for the browser and Android |
+| **Stack** | Vanilla JavaScript with no build step for the web version; Capacitor wraps it as an Android app |
+| **Backend** | Firebase Firestore with anonymous sign-in for the shared leaderboard, protected by `firestore.rules` |
+| **Build** | GitHub Actions builds and releases the APK on every push to `main` |
+| **Puzzles** | Generated on the fly with exactly one solution; hints explain the next logical step |
+
 ## Rules
 
 Place one queen in every row, every column and every color region. Queens can't touch each other, not even diagonally.
